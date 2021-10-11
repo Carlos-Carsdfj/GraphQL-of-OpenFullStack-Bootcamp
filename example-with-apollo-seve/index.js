@@ -1,5 +1,5 @@
-const {ApolloServer, gql, UserInputError } = require('apollo-server');
-const {v4: uuid} = require('uuid');
+const { ApolloServer, gql, UserInputError } = require('apollo-server');
+const { v4: uuid } = require('uuid');
 let persons = [
   {
     name: 'Arto Hellas',
