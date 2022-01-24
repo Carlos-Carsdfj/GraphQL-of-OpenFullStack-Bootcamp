@@ -12,7 +12,7 @@ const Persons = ({ persons }) =>{
 
   useEffect(() => {
       if (result.data) {
-        setPerson(result.data.findPerson)
+        setPerson(result.data.findPerson[0])
       }
   },[result])
   

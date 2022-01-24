@@ -22,7 +22,7 @@ const PhoneForm = ({ setError }) => {
     if (result.data && result.data.editNumber === null){
       setError('person not found')
     }
-  },[result.data]) // elint-disable-line
+  },[result.data, setError]) // elint-disable-line
   return (
     <div>
       <h2>change number</h2>
