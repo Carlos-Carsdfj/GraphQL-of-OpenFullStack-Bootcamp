@@ -1,19 +1,22 @@
-const { gql, UserInputError, AuthenticationError } = require("apollo-server")
+const { gql, UserInputError, AuthenticationError } = require("apollo-server-express")
 const Person = require("../models/person.js")
 const User = require("../models/user.js")
 const jwt = require("jsonwebtoken")
 const { JWT_SECRET } = process.env
-
+const { PubSub } = require('graphql-subscriptions')
+const pubsub = new PubSub()
+const { makeExecutableSchema } = require('@graphql-tools/schema')
 
 const typeDefs = gql`
   enum YesNo {
     YES
     NO
   }
-  type Person {
+    type Person {
     name: String!
     phone: String
     address: Address!
+    friendOf: [User!]!
     id: ID
   }
   type Address {
@@ -47,23 +50,27 @@ const typeDefs = gql`
     login(username: String! password: String!): Token
     addAsFriend( name: String!): User
   }
+  type Subscription {
+    personAdded: Person!
+  }
+ 
 `
 const resolvers = {
   Query: {
     personCount: () => Person.collection.countDocuments(),
     allPersons: (root, arg) => {
       if (!arg.phone) {
-        return Person.find({}).then((ps) => ps);
+        return Person.find({}).populate('friendOf').then((ps) => ps);
       }
       if (arg.phone === "YES") {
-        return Person.find({ phone: { $ne: null } }).then((ps) => ps);
+        return Person.find({ phone: { $ne: null } }).populate('friendOf').then((ps) => ps);
       }
       if (arg.phone === "NO") {
-        return Person.find({ phone: null }).then((ps) => ps);
+        return Person.find({ phone: null }).populate('friendOf').then((ps) => ps);
       }
     },
     findPerson: (root, arg) => {
-      return Person.find({ name: arg.name }).then((ps) => ps);
+      return Person.find({ name: arg.name }) .then((ps) => ps);
     },
     me:(root, arg, context ) => {
       console.log(context)
@@ -76,6 +83,20 @@ const resolvers = {
         street: root.street,
         city: root.city,
       }
+    },
+    friendOf: async (root) => {
+      const friends = await User.find({
+        friends: {
+          $in: [root._id]
+        } 
+      })
+      return friends
+    }
+  },
+
+  Subscription: {
+    personAdded: {
+      subscribe: () => pubsub.asyncIterator(['PERSON_ADDED'])
     },
   },
   Mutation: {
@@ -96,6 +117,7 @@ const resolvers = {
           invalidArgs: args
         })
       }
+    pubsub.publish('PERSON_ADDED', { personAdded: person })
     return person
     },
     deleteAll: async()=>{
@@ -166,6 +188,7 @@ const context = async ({ req }) => {
       return { currentUser }
     }
   }
+const schema = makeExecutableSchema({typeDefs, resolvers})
 module.exports = {
   typeDefs,
   resolvers,

@@ -1,16 +1,47 @@
 require("dotenv").config();
-const { ApolloServer, UserInputError } = require("apollo-server")
-const express = require("express");
-const cors = require("cors");
-const app = express();
 require("./mongo");
-const { typeDefs, resolvers, context } = require("./utils/config.js")
+const cors = require('cors')
+const { createServer } = require("http");
+const express = require("express");
+const { execute, subscribe } = require("graphql");
+const { ApolloServer, gql } = require("apollo-server-express");
+const { PubSub } = require("graphql-subscriptions");
+const { SubscriptionServer } = require("subscriptions-transport-ws");
+const { makeExecutableSchema } = require("@graphql-tools/schema");
+const { resolvers, typeDefs, context } = require("./utils/config.js");
 
-const server = new ApolloServer({
-  typeDefs,
-  resolvers,
-  context,
-});
-server.listen().then(({ url }) => {
-  console.log(`server ready at ${url}`);
-});
+
+(async () => {
+  const PORT = 4000;
+  const pubsub = new PubSub();
+  const app = express();
+  app.use(cors())
+  const httpServer = createServer(app);
+
+  // Resolver map
+ const schema = makeExecutableSchema({ typeDefs, resolvers });
+
+  const server = new ApolloServer({
+    schema,
+    context
+  });
+  await server.start();
+  server.applyMiddleware({ app });
+
+  SubscriptionServer.create(
+    { schema, execute, subscribe },
+    { server: httpServer, path: server.graphqlPath }
+  );
+
+  httpServer.listen(PORT, () => {
+    console.log(
+      `🚀 Query endpoint ready at http://localhost:${PORT}${server.graphqlPath}`
+    );
+    console.log(
+      `🚀 Subscription endpoint ready at ws://localhost:${PORT}${server.graphqlPath}`
+    );
+  });
+
+ 
+})();
+

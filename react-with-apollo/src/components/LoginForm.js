@@ -7,7 +7,10 @@ const LoginForm = ({ setToken, setError })=>{
   const [ password, setPassword ] = useState('')
   const [login, result  ] = useMutation(LOGIN,{
     onError: (error)=>{
-      setError(error.graphQLErrors[0].message)
+
+      if(error.graphQLErrors[0]){
+        setError(error.graphQLErrors[0].message | error)
+      }
     }
   })
 
